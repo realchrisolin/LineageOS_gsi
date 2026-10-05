@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Chris Olin <contact@chrisolin.com>
+Date: Sun, 4 Oct 2026 20:47:57 -0400
+Subject: [PATCH] SystemUI: release lockscreen.enable_landscape
+
+This system image is the watch's image. The panel is worn in
+landscape, and the split bouncer is the usable PIN pad.
+UnreleasedFlag stays off on a user build.
+
+The same flag selects the small lock-screen clock, the split shade,
+and the 2-by-2 lock-screen Quick Settings on screens under 600dp.
+
+---
+ packages/SystemUI/src/com/android/systemui/flags/Flags.kt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
+index fe9c9cb4f7c8..e11281c91726 100644
+--- a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
++++ b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
+@@ -245,7 +245,7 @@ object Flags {
+         sysPropBooleanFlag("persist.wm.debug.shell_transit", default = true)
+ 
+     // TODO(b/293252410) : Tracking Bug
+-    @JvmField val LOCKSCREEN_ENABLE_LANDSCAPE = unreleasedFlag("lockscreen.enable_landscape")
++    @JvmField val LOCKSCREEN_ENABLE_LANDSCAPE = releasedFlag("lockscreen.enable_landscape")
+ 
+     // 1200 - predictive back
+     @Keep
+-- 
+2.51.0
