@@ -1,0 +1,99 @@
+From d22a4ae4122f50431d77de7897b2b9be27629985 Mon Sep 17 00:00:00 2001
+From: Chris Olin <contact@chrisolin.com>
+Date: Mon, 5 Oct 2026 11:06:04 -0400
+Subject: [PATCH] Keep user builds free of debug-only policy
+
+gen_build_prop.py sets ro.adb.secure=1 when TARGET_BUILD_VARIANT is
+user. post_process_props.py rejects system/build.prop when that
+assignment conflicts with a 0 from TARGET_SYSTEM_PROP or
+PRODUCT_SYSTEM_DEFAULT_PROPERTIES. userdebug and eng still set 0
+from base.mk.
+
+A user policy also rejects permissive domains. ueventd, tkcore, and
+phhsu_daemon stay permissive through userdebug_or_eng(), which m4
+drops unless the variant is userdebug or eng.
+---
+ base.mk              | 8 +++++++-
+ sepolicy/huawei.te   | 3 ++-
+ sepolicy/mediatek.te | 3 ++-
+ sepolicy/su.te       | 3 ++-
+ system.prop          | 4 +++-
+ 5 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/base.mk b/base.mk
+index 317e02a..e40f464 100644
+--- a/base.mk
++++ b/base.mk
+@@ -34,10 +34,16 @@ PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
+     ro.build.version.all_codenames=$(PLATFORM_VERSION_ALL_CODENAMES) \
+     ro.build.version.release=$(PLATFORM_VERSION) \
+     ro.build.version.security_patch=$(PLATFORM_SECURITY_PATCH) \
+-    ro.adb.secure=0 \
+     ro.logd.auditd=true \
+     ro.logd.kernel=true \
+ 
++# gen_build_prop.py sets ro.adb.secure=1 on user. post_process_props.py
++# rejects a second assignment of 0. userdebug and eng keep open adb.
++ifneq ($(TARGET_BUILD_VARIANT),user)
++PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
++    ro.adb.secure=0
++endif
++
+ # Huawei HiSuite (also other OEM custom programs I guess) it's of no use in AOSP builds
+ PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
+     persist.sys.usb.config=adb \
+diff --git a/sepolicy/huawei.te b/sepolicy/huawei.te
+index 2988ed6..9b09381 100644
+--- a/sepolicy/huawei.te
++++ b/sepolicy/huawei.te
+@@ -1,5 +1,6 @@
+ allow ueventd proc:file r_file_perms;
+-permissive ueventd;
++# User builds reject permissive domains. See system/sepolicy/public/te_macros.
++userdebug_or_eng(`permissive ueventd;')
+ 
+ type teecd_data_file, file_type;
+ type dmd_device, file_type;
+diff --git a/sepolicy/mediatek.te b/sepolicy/mediatek.te
+index 0344d0f..4414191 100644
+--- a/sepolicy/mediatek.te
++++ b/sepolicy/mediatek.te
+@@ -23,7 +23,8 @@ allow { appdomain -isolated_app }  mtk_hal_mms_hwservice:hwservice_manager find;
+ #denied { getattr } for comm="tkuinit" path="/dev/__properties__/u:object_r:default_prop:s0" dev="tmpfs" ino=2029 scontext=u:r:tkcore:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=1
+ 
+ type tkcore, domain;
+-permissive tkcore;
++# User builds reject permissive domains. See system/sepolicy/public/te_macros.
++userdebug_or_eng(`permissive tkcore;')
+ 
+ allow platform_app sysfs_leds:dir r_dir_perms;
+ allow platform_app sysfs_leds:file r_file_perms;
+diff --git a/sepolicy/su.te b/sepolicy/su.te
+index f8829cd..39978f9 100644
+--- a/sepolicy/su.te
++++ b/sepolicy/su.te
+@@ -3,7 +3,8 @@ type phhsu_exec, exec_type, file_type;
+ type phhsu_daemon_tmpfs, file_type;
+ 
+ typeattribute phhsu_daemon coredomain;
+-permissive phhsu_daemon;
++# User builds reject permissive domains. See system/sepolicy/public/te_macros.
++userdebug_or_eng(`permissive phhsu_daemon;')
+ 
+ tmpfs_domain(phhsu_daemon);
+ domain_auto_trans(init, phhsu_exec, phhsu_daemon);
+diff --git a/system.prop b/system.prop
+index 09ad957..ffaa7d7 100644
+--- a/system.prop
++++ b/system.prop
+@@ -1,4 +1,6 @@
+-ro.adb.secure=0
++# ro.adb.secure is not set here. TARGET_SYSTEM_PROP merges this file
++# into system/build.prop, and a 0 collides with the user value from
++# gen_build_prop.py. Non-user builds set 0 in base.mk.
+ #Some devices have sdcardfs kernel panicing on 8.0
+ #Disable for everyone for the moment
+ ro.sys.sdcardfs=0
+-- 
+2.55.0
+
