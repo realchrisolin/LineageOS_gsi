@@ -1,7 +1,7 @@
-From a7cb755825c2d02bb0453a56894ab6f652aff4b8 Mon Sep 17 00:00:00 2001
+From a421188d2b185eece9dd9d26df5350abea2cadd2 Mon Sep 17 00:00:00 2001
 From: Chris Olin <contact@chrisolin.com>
 Date: Mon, 5 Oct 2026 22:17:56 -0400
-Subject: [PATCH] Limit the Glif landscape split to windows at least 600dp wide
+Subject: [PATCH] setupdesign: Limit landscape split to w600dp
 
 layout-land-v31 splits every landscape window into equal header
 and content panes. A 569dp-wide window gives the content pane
@@ -12,6 +12,8 @@ layout-w600dp-land-v31 so narrower landscape windows keep the
 single-column template.
 
 Test: qualifier check, then Welcome on a 569dp-wide landscape window
+Change-Id: I0ff2af8f2728441a7a55457c332467045d6732ed
+Signed-off-by: Chris Olin <contact@chrisolin.com>
 ---
  .../sud_glif_loading_template_content.xml                         | 0
  .../sud_glif_blank_template_content.xml                           | 0
