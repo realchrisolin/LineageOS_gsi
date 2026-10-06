@@ -1,0 +1,130 @@
+From 903b416a9864407c7496011b83477c5de43b32ae Mon Sep 17 00:00:00 2001
+From: Chris Olin <contact@chrisolin.com>
+Date: Mon, 5 Oct 2026 20:16:12 -0400
+Subject: [PATCH] Fix panel rotation on LOKMAT APPLLP 9 MAX
+
+[device] The builtin panel is 480x640 and the watch is worn at
+rotation 270. A product display_settings.xml and a SettingsProvider
+overlay rotate every phone that boots this GSI.
+
+phh-on-data.sh writes /data/system/display_settings.xml only when
+ro.vendor.build.fingerprint is alps/vnd_YZL_C30_TFT_JL/YZL_C30_TFT_JL,
+and only when that file is absent. Window Manager keeps a later size
+or density override. A factory reset removes the file and the next
+boot writes it again.
+
+fixedToUserRotation 2 is FIXED_TO_USER_ROTATION_ENABLED. The default
+angle is the fingerprint SettingsProvider overlay. DisplayRotation
+returns before applying userRotation from this file on the default
+display.
+---
+ base.mk                                       |  3 +-
+ display_settings.xml                          | 10 ------
+ .../SettingsProvider/res/values/defaults.xml  | 22 -------------
+ phh-on-data.sh                                | 33 +++++++++++++++++++
+ 4 files changed, 34 insertions(+), 34 deletions(-)
+ delete mode 100644 display_settings.xml
+ delete mode 100644 overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
+
+diff --git a/base.mk b/base.mk
+index e40f464..8100407 100644
+--- a/base.mk
++++ b/base.mk
+@@ -15,8 +15,7 @@ PRODUCT_PACKAGES += \
+ 
+ PRODUCT_COPY_FILES += \
+     device/phh/treble/bluetooth/audio/config/sysbta_audio_policy_configuration.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/sysbta_audio_policy_configuration.xml \
+-    device/phh/treble/bluetooth/audio/config/sysbta_audio_policy_configuration_7_0.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/sysbta_audio_policy_configuration_7_0.xml \
+-    device/phh/treble/display_settings.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/display_settings.xml
++    device/phh/treble/bluetooth/audio/config/sysbta_audio_policy_configuration_7_0.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/sysbta_audio_policy_configuration_7_0.xml
+ 
+ SYSTEM_EXT_PRIVATE_SEPOLICY_DIRS += device/phh/treble/sepolicy
+ PRODUCT_PACKAGE_OVERLAYS += device/phh/treble/overlay
+diff --git a/display_settings.xml b/display_settings.xml
+deleted file mode 100644
+index 3edb059..0000000
+--- a/display_settings.xml
++++ /dev/null
+@@ -1,10 +0,0 @@
+-<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+-<!--
+-  Builtin panel, matched by port. fixedToUserRotation 2 is
+-  FIXED_TO_USER_ROTATION_ENABLED: an app that asks for portrait does not
+-  turn the panel.
+--->
+-<display-settings>
+-    <config identifier="1" />
+-    <display name="port:0" fixedToUserRotation="2" />
+-</display-settings>
+diff --git a/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml b/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
+deleted file mode 100644
+index e257f76..0000000
+--- a/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
++++ /dev/null
+@@ -1,22 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!--
+- * Copyright (c) 2026, The Android Open Source Project
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+--->
+-<resources>
+-    <!-- Natural panel is 480x640. This watch is worn at rotation 270, so a
+-         new settings database comes up landscape. Auto-rotate stays at its
+-         default of off. -->
+-    <integer name="def_user_rotation">3</integer>
+-</resources>
+diff --git a/phh-on-data.sh b/phh-on-data.sh
+index 472d16e..84c58cf 100644
+--- a/phh-on-data.sh
++++ b/phh-on-data.sh
+@@ -29,3 +29,36 @@ if [ "$vndk" = 28 ];then
+     mount $minijailSrc64 /vendor/lib64/libminijail.so
+     mount $minijailSrc /vendor/lib/libminijail.so
+ fi
++
++# LOKMAT APPLLP 9 MAX, board YZL_C30_TFT_JL. The panel is 480x640 and is worn
++# at rotation 270. fixedToUserRotation 2 is FIXED_TO_USER_ROTATION_ENABLED.
++# The angle comes from the fingerprint SettingsProvider overlay: this file
++# cannot set user rotation on the default display. Leave an existing file
++# alone so a later size or density override is kept. /data/system is absent
++# until userdata is mounted, and both early-boot and
++# vold.decrypt=trigger_restart_framework run this script.
++if getprop ro.vendor.build.fingerprint | grep -q '^alps/vnd_YZL_C30_TFT_JL/YZL_C30_TFT_JL:'; then
++    settings=/data/system/display_settings.xml
++    if [ -d /data/system ] && [ ! -e "$settings" ]; then
++        tmp="${settings}.tmp"
++        if cat > "$tmp" <<'EOF'
++<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
++<display-settings>
++    <config identifier="1" />
++    <display name="port:0" fixedToUserRotation="2" />
++</display-settings>
++EOF
++        then
++            if [ ! -e "$settings" ]; then
++                chown system:system "$tmp"
++                chmod 600 "$tmp"
++                mv "$tmp" "$settings"
++                restorecon "$settings"
++            else
++                rm -f "$tmp"
++            fi
++        else
++            rm -f "$tmp"
++        fi
++    fi
++fi
+-- 
+2.55.0
+

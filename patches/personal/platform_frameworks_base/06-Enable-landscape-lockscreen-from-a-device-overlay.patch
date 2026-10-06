@@ -1,0 +1,481 @@
+From 2d3db6e45a5286cfbbb60df8a4ad5ac9e6925b5e Mon Sep 17 00:00:00 2001
+From: Chris Olin <contact@chrisolin.com>
+Date: Mon, 5 Oct 2026 20:16:12 -0400
+Subject: [PATCH] SystemUI: let a device overlay enable the landscape lock
+ screen
+
+lockscreen.enable_landscape stays unreleased, so a user build keeps it
+off. An RRO cannot turn an unreleased flag on.
+config_enable_lockscreen_landscape defaults false and is OR'd with the
+flag. A device overlay sets the bool.
+
+That selects the same behavior the flag does: the split bouncer, the
+small lock-screen clock, the split shade, and the 2-by-2 lock-screen
+Quick Settings under 600dp.
+
+Change-Id: I1988a3c83aaa9f4c028a5d1321b5552b0519671f
+---
+ .../ui/composable/section/LockSection.kt      |  4 +-
+ packages/SystemUI/res/values/bools.xml        |  5 +++
+ .../KeyguardPasswordViewController.java       |  4 +-
+ .../KeyguardPatternViewController.java        |  5 ++-
+ .../keyguard/KeyguardPinViewController.java   |  4 +-
+ .../KeyguardSecurityContainerController.java  |  4 +-
+ ...KeyguardSecurityViewFlipperController.java |  8 +++-
+ .../src/com/android/systemui/flags/Flags.kt   |  4 +-
+ .../systemui/flags/LockscreenLandscape.kt     | 38 +++++++++++++++++++
+ .../repository/KeyguardClockRepository.kt     |  4 +-
+ .../sections/DefaultDeviceEntrySection.kt     |  4 +-
+ .../systemui/qs/SideLabelTileLayout.kt        |  4 +-
+ .../com/android/systemui/qs/TileLayout.java   |  5 ++-
+ .../systemui/qs/customize/TileAdapter.java    |  4 +-
+ .../NotificationPanelViewController.java      |  4 +-
+ .../stack/NotificationStackScrollLayout.java  |  5 ++-
+ .../phone/KeyguardBottomAreaViewController.kt |  4 +-
+ .../policy/KeyguardStateControllerImpl.java   |  4 +-
+ .../policy/SplitShadeStateControllerImpl.kt   |  4 +-
+ 19 files changed, 98 insertions(+), 20 deletions(-)
+ create mode 100644 packages/SystemUI/src/com/android/systemui/flags/LockscreenLandscape.kt
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/section/LockSection.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/section/LockSection.kt
+index 597cbf24729b..f8e6ee6570b1 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/section/LockSection.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/section/LockSection.kt
+@@ -35,6 +35,7 @@ import com.android.systemui.customization.R as customR
+ import com.android.systemui.dagger.qualifiers.Application
+ import com.android.systemui.flags.FeatureFlagsClassic
+ import com.android.systemui.flags.Flags
++import com.android.systemui.flags.LockscreenLandscape
+ import com.android.systemui.keyguard.ui.binder.DeviceEntryIconViewBinder
+ import com.android.systemui.keyguard.ui.composable.blueprint.BlueprintAlignmentLines
+ import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
+@@ -126,7 +127,8 @@ constructor(
+     private fun lockIconBounds(context: Context): IntRect {
+         val windowViewBounds = windowManager.currentWindowMetrics.bounds
+         var widthPx = windowViewBounds.right.toFloat()
+-        if (featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE)) {
++        if (LockscreenLandscape.isEnabled(
++                featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), context)) {
+             val insets = windowManager.currentWindowMetrics.windowInsets
+             // Assumed to be initially neglected as there are no left or right insets in portrait.
+             // However, on landscape, these insets need to included when calculating the midpoint.
+diff --git a/packages/SystemUI/res/values/bools.xml b/packages/SystemUI/res/values/bools.xml
+index 234c6df69d0b..633972e3e1ec 100644
+--- a/packages/SystemUI/res/values/bools.xml
++++ b/packages/SystemUI/res/values/bools.xml
+@@ -66,4 +66,9 @@
+ 
+     <!--  True when small screen (<sw600dp) is landscape. -->
+     <bool name="is_small_screen_landscape">false</bool>
++
++    <!-- Device overlay hook for lockscreen.enable_landscape. The flag stays
++         unreleased, so it is off on a user build. A device worn in landscape
++         sets this true and gets the landscape lock screen that flag selects. -->
++    <bool name="config_enable_lockscreen_landscape">false</bool>
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/keyguard/KeyguardPasswordViewController.java b/packages/SystemUI/src/com/android/keyguard/KeyguardPasswordViewController.java
+index 4628ed705d00..ad26046a4e43 100644
+--- a/packages/SystemUI/src/com/android/keyguard/KeyguardPasswordViewController.java
++++ b/packages/SystemUI/src/com/android/keyguard/KeyguardPasswordViewController.java
+@@ -51,6 +51,7 @@ import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer;
+ import com.android.systemui.classifier.FalsingCollector;
+ import com.android.systemui.dagger.qualifiers.Main;
+ import com.android.systemui.flags.FeatureFlags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.res.R;
+ import com.android.systemui.statusbar.policy.DevicePostureController;
+ import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+@@ -148,7 +149,8 @@ public class KeyguardPasswordViewController
+         mMainExecutor = mainExecutor;
+         mKeyguardViewController = keyguardViewController;
+         mKeyguardKeyboardInteractor = keyguardKeyboardInteractor;
+-        if (featureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE)) {
++        if (LockscreenLandscape.isEnabled(
++                featureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE), resources)) {
+             view.setIsLockScreenLandscapeEnabled();
+         }
+         mShowImeAtScreenOn = resources.getBoolean(R.bool.kg_show_ime_at_screen_on);
+diff --git a/packages/SystemUI/src/com/android/keyguard/KeyguardPatternViewController.java b/packages/SystemUI/src/com/android/keyguard/KeyguardPatternViewController.java
+index bed866bc368d..58681ff17482 100644
+--- a/packages/SystemUI/src/com/android/keyguard/KeyguardPatternViewController.java
++++ b/packages/SystemUI/src/com/android/keyguard/KeyguardPatternViewController.java
+@@ -40,6 +40,7 @@ import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer;
+ import com.android.systemui.classifier.FalsingClassifier;
+ import com.android.systemui.classifier.FalsingCollector;
+ import com.android.systemui.flags.FeatureFlags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.res.R;
+ import com.android.systemui.statusbar.policy.DevicePostureController;
+ import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+@@ -221,8 +222,8 @@ public class KeyguardPatternViewController
+         mLatencyTracker = latencyTracker;
+         mFalsingCollector = falsingCollector;
+         mEmergencyButtonController = emergencyButtonController;
+-        view.setIsLockScreenLandscapeEnabled(
+-                featureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE));
++        view.setIsLockScreenLandscapeEnabled(LockscreenLandscape.isEnabled(
++                featureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE), view.getContext()));
+         mLockPatternView = mView.findViewById(R.id.lockPatternView);
+         mPostureController = postureController;
+     }
+diff --git a/packages/SystemUI/src/com/android/keyguard/KeyguardPinViewController.java b/packages/SystemUI/src/com/android/keyguard/KeyguardPinViewController.java
+index 799543c37b41..97546c76f9e7 100644
+--- a/packages/SystemUI/src/com/android/keyguard/KeyguardPinViewController.java
++++ b/packages/SystemUI/src/com/android/keyguard/KeyguardPinViewController.java
+@@ -30,6 +30,7 @@ import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer;
+ import com.android.systemui.classifier.FalsingCollector;
+ import com.android.systemui.flags.FeatureFlags;
+ import com.android.systemui.flags.Flags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.res.R;
+ import com.android.systemui.statusbar.policy.DevicePostureController;
+ import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+@@ -75,7 +76,8 @@ public class KeyguardPinViewController
+         mPostureController = postureController;
+         mLockPatternUtils = lockPatternUtils;
+         mFeatureFlags = featureFlags;
+-        view.setIsLockScreenLandscapeEnabled(mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE));
++        view.setIsLockScreenLandscapeEnabled(LockscreenLandscape.isEnabled(
++                mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE), view.getContext()));
+         mBackspaceKey = view.findViewById(R.id.delete_button);
+         mPinLength = mLockPatternUtils.getPinLength(selectedUserInteractor.getSelectedUserId());
+         mUiEventLogger = uiEventLogger;
+diff --git a/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityContainerController.java b/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityContainerController.java
+index 8cfb4c5592aa..eff27d021ec4 100644
+--- a/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityContainerController.java
++++ b/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityContainerController.java
+@@ -80,6 +80,7 @@ import com.android.systemui.dagger.qualifiers.Background;
+ import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor;
+ import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor;
+ import com.android.systemui.flags.FeatureFlags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.keyguard.KeyguardWmStateRefactor;
+ import com.android.systemui.keyguard.domain.interactor.KeyguardDismissTransitionInteractor;
+ import com.android.systemui.log.SessionTracker;
+@@ -376,7 +377,8 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
+ 
+                 @Override
+                 public void onOrientationChanged(int orientation) {
+-                    if (mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE)
++                    if (LockscreenLandscape.isEnabled(
++                            mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE), getResources())
+                             && getResources().getBoolean(R.bool.update_bouncer_constraints)) {
+                         boolean useSplitBouncer = orientation == ORIENTATION_LANDSCAPE;
+                         mSecurityViewFlipperController.updateConstraints(useSplitBouncer);
+diff --git a/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityViewFlipperController.java b/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityViewFlipperController.java
+index 120045fc058b..08fe6deed0a6 100644
+--- a/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityViewFlipperController.java
++++ b/packages/SystemUI/src/com/android/keyguard/KeyguardSecurityViewFlipperController.java
+@@ -31,6 +31,7 @@ import com.android.keyguard.KeyguardInputViewController.Factory;
+ import com.android.keyguard.KeyguardSecurityModel.SecurityMode;
+ import com.android.keyguard.dagger.KeyguardBouncerScope;
+ import com.android.systemui.flags.FeatureFlags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.res.R;
+ import com.android.systemui.util.ViewController;
+ 
+@@ -120,7 +121,8 @@ public class KeyguardSecurityViewFlipperController
+     public void asynchronouslyInflateView(SecurityMode securityMode,
+             KeyguardSecurityCallback keyguardSecurityCallback,
+             @Nullable OnViewInflatedCallback onViewInflatedListener) {
+-        int layoutId = mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE)
++        int layoutId = LockscreenLandscape.isEnabled(
++                mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE), getResources())
+                 ? getLayoutIdFor(securityMode) : getLegacyLayoutIdFor(securityMode);
+         if (layoutId != 0) {
+             if (DEBUG) {
+@@ -139,7 +141,9 @@ public class KeyguardSecurityViewFlipperController
+                             onViewInflatedListener.onViewInflated(childController);
+ 
+                             // Single bouncer constrains are default
+-                            if (mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE)) {
++                            if (LockscreenLandscape.isEnabled(
++                                    mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE),
++                                    getResources())) {
+                                 boolean useSplitBouncer =
+                                         getResources().getBoolean(R.bool.update_bouncer_constraints)
+                                         && getResources().getConfiguration().orientation
+diff --git a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
+index e11281c91726..3b6f73dbb8e1 100644
+--- a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
++++ b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
+@@ -245,7 +245,9 @@ object Flags {
+         sysPropBooleanFlag("persist.wm.debug.shell_transit", default = true)
+ 
+     // TODO(b/293252410) : Tracking Bug
+-    @JvmField val LOCKSCREEN_ENABLE_LANDSCAPE = releasedFlag("lockscreen.enable_landscape")
++    // A device opts in with config_enable_lockscreen_landscape. The flag stays
++    // unreleased, so a user build does not enable it for every device.
++    @JvmField val LOCKSCREEN_ENABLE_LANDSCAPE = unreleasedFlag("lockscreen.enable_landscape")
+ 
+     // 1200 - predictive back
+     @Keep
+diff --git a/packages/SystemUI/src/com/android/systemui/flags/LockscreenLandscape.kt b/packages/SystemUI/src/com/android/systemui/flags/LockscreenLandscape.kt
+new file mode 100644
+index 000000000000..edb2d672de75
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/flags/LockscreenLandscape.kt
+@@ -0,0 +1,38 @@
++/*
++ * Copyright (C) 2026 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.systemui.flags
++
++import android.content.Context
++import android.content.res.Resources
++import com.android.systemui.res.R
++
++/**
++ * Landscape lock screen stays off unless [Flags.LOCKSCREEN_ENABLE_LANDSCAPE] is on or this
++ * device's overlay sets [R.bool.config_enable_lockscreen_landscape]. The flag is unreleased, so a
++ * user build leaves every other device unchanged.
++ */
++object LockscreenLandscape {
++    @JvmStatic
++    fun isEnabled(flagEnabled: Boolean, resources: Resources): Boolean {
++        return flagEnabled || resources.getBoolean(R.bool.config_enable_lockscreen_landscape)
++    }
++
++    @JvmStatic
++    fun isEnabled(flagEnabled: Boolean, context: Context): Boolean {
++        return isEnabled(flagEnabled, context.resources)
++    }
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/KeyguardClockRepository.kt b/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/KeyguardClockRepository.kt
+index 9718e7508df2..650d6288212f 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/KeyguardClockRepository.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/KeyguardClockRepository.kt
+@@ -25,6 +25,7 @@ import com.android.systemui.dagger.qualifiers.Application
+ import com.android.systemui.dagger.qualifiers.Background
+ import com.android.systemui.flags.FeatureFlagsClassic
+ import com.android.systemui.flags.Flags
++import com.android.systemui.flags.LockscreenLandscape
+ import com.android.systemui.keyguard.shared.model.ClockSize
+ import com.android.systemui.keyguard.shared.model.ClockSizeSetting
+ import com.android.systemui.plugins.clocks.ClockController
+@@ -165,7 +166,8 @@ constructor(
+ 
+     override val shouldForceSmallClock: Boolean
+         get() =
+-            featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE) &&
++            LockscreenLandscape.isEnabled(
++                featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), context) &&
+                 // True on small landscape screens
+                 context.resources.getBoolean(R.bool.force_small_clock_on_lockscreen)
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/view/layout/sections/DefaultDeviceEntrySection.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/view/layout/sections/DefaultDeviceEntrySection.kt
+index aa7eb2933992..f6821616bbf5 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/view/layout/sections/DefaultDeviceEntrySection.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/view/layout/sections/DefaultDeviceEntrySection.kt
+@@ -32,6 +32,7 @@ import com.android.systemui.customization.R as customR
+ import com.android.systemui.dagger.qualifiers.Application
+ import com.android.systemui.flags.FeatureFlags
+ import com.android.systemui.flags.Flags
++import com.android.systemui.flags.LockscreenLandscape
+ import com.android.systemui.keyguard.KeyguardBottomAreaRefactor
+ import com.android.systemui.keyguard.MigrateClocksToBlueprint
+ import com.android.systemui.keyguard.shared.model.KeyguardSection
+@@ -119,7 +120,8 @@ constructor(
+             context.resources.getDimensionPixelSize(customR.dimen.lock_icon_margin_bottom)
+         val bounds = windowManager.currentWindowMetrics.bounds
+         var widthPixels = bounds.right.toFloat()
+-        if (featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE)) {
++        if (LockscreenLandscape.isEnabled(
++                featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), context)) {
+             // Assumed to be initially neglected as there are no left or right insets in portrait.
+             // However, on landscape, these insets need to included when calculating the midpoint.
+             val insets = windowManager.currentWindowMetrics.windowInsets
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/SideLabelTileLayout.kt b/packages/SystemUI/src/com/android/systemui/qs/SideLabelTileLayout.kt
+index 777faeacadd8..67343721420d 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/SideLabelTileLayout.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/SideLabelTileLayout.kt
+@@ -19,6 +19,7 @@ package com.android.systemui.qs
+ import android.content.Context
+ import android.util.AttributeSet
+ import com.android.systemui.flags.Flags
++import com.android.systemui.flags.LockscreenLandscape
+ import com.android.systemui.flags.RefactorFlag
+ import com.android.systemui.res.R
+ 
+@@ -28,7 +29,8 @@ open class SideLabelTileLayout(
+ ) : TileLayout(context, attrs) {
+ 
+     private val isSmallLandscapeLockscreenEnabled =
+-            RefactorFlag.forView(Flags.LOCKSCREEN_ENABLE_LANDSCAPE).isEnabled
++            LockscreenLandscape.isEnabled(
++                    RefactorFlag.forView(Flags.LOCKSCREEN_ENABLE_LANDSCAPE).isEnabled, context)
+ 
+     override fun updateResources(): Boolean {
+         return super.updateResources().also {
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/TileLayout.java b/packages/SystemUI/src/com/android/systemui/qs/TileLayout.java
+index ef44e5fb8757..922f8a0349a8 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/TileLayout.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/TileLayout.java
+@@ -17,6 +17,7 @@ import androidx.annotation.VisibleForTesting;
+ import com.android.internal.logging.UiEventLogger;
+ import com.android.systemui.FontSizeUtils;
+ import com.android.systemui.flags.Flags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.flags.RefactorFlag;
+ import com.android.systemui.qs.QSPanel.QSTileLayout;
+ import com.android.systemui.qs.QSPanelControllerBase.TileRecord;
+@@ -56,7 +57,9 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
+     protected int mLastTileBottom;
+     protected TextView mTempTextView;
+     private final Boolean mIsSmallLandscapeLockscreenEnabled =
+-            RefactorFlag.forView(Flags.LOCKSCREEN_ENABLE_LANDSCAPE).isEnabled();
++            LockscreenLandscape.isEnabled(
++                    RefactorFlag.forView(Flags.LOCKSCREEN_ENABLE_LANDSCAPE).isEnabled(),
++                    getContext());
+ 
+     public TileLayout(Context context) {
+         this(context, null);
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/customize/TileAdapter.java b/packages/SystemUI/src/com/android/systemui/qs/customize/TileAdapter.java
+index 1c171f2be277..15b17b7871ab 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/customize/TileAdapter.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/customize/TileAdapter.java
+@@ -51,6 +51,7 @@ import com.android.internal.logging.UiEventLogger;
+ import com.android.systemui.FontSizeUtils;
+ import com.android.systemui.flags.FeatureFlags;
+ import com.android.systemui.flags.Flags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.qs.QSEditEvent;
+ import com.android.systemui.qs.QSHost;
+ import com.android.systemui.qs.TileLayout;
+@@ -140,7 +141,8 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
+         mMarginDecoration = new MarginTileDecoration();
+         mMinNumTiles = context.getResources().getInteger(R.integer.quick_settings_min_num_tiles);
+         mIsSmallLandscapeLockscreenEnabled =
+-                featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE);
++                LockscreenLandscape.isEnabled(
++                        featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), context);
+         mNumColumns = useSmallLandscapeLockscreenResources()
+                 ? context.getResources().getInteger(
+                         R.integer.small_land_lockscreen_quick_settings_num_columns)
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java b/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java
+index cb44b6d94e98..d4ed0c974521 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java
++++ b/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java
+@@ -130,6 +130,7 @@ import com.android.systemui.dump.DumpManager;
+ import com.android.systemui.dump.DumpsysTableLogger;
+ import com.android.systemui.flags.FeatureFlags;
+ import com.android.systemui.flags.Flags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.fragments.FragmentService;
+ import com.android.systemui.keyguard.KeyguardBottomAreaRefactor;
+ import com.android.systemui.keyguard.KeyguardUnlockAnimationController;
+@@ -1767,7 +1768,8 @@ public final class NotificationPanelViewController implements ShadeSurface, Dump
+     }
+ 
+     private boolean shouldForceSmallClock() {
+-        return mFeatureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE)
++        return LockscreenLandscape.isEnabled(
++                mFeatureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), mResources)
+                 && !isOnAod()
+                 // True on small landscape screens
+                 && mResources.getBoolean(R.bool.force_small_clock_on_lockscreen);
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+index f37f7f990cf9..54c9581babea 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+@@ -89,6 +89,7 @@ import com.android.systemui.Dumpable;
+ import com.android.systemui.ExpandHelper;
+ import com.android.systemui.flags.FeatureFlags;
+ import com.android.systemui.flags.Flags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.plugins.ActivityStarter;
+ import com.android.systemui.qs.flags.QSComposeFragment;
+ import com.android.systemui.res.R;
+@@ -640,8 +641,8 @@ public class NotificationStackScrollLayout
+         super(context, attrs, 0, 0);
+         Resources res = getResources();
+         mFeatureFlags = Dependency.get(FeatureFlags.class);
+-        mIsSmallLandscapeLockscreenEnabled = mFeatureFlags.isEnabled(
+-                Flags.LOCKSCREEN_ENABLE_LANDSCAPE);
++        mIsSmallLandscapeLockscreenEnabled = LockscreenLandscape.isEnabled(
++                mFeatureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), res);
+         mDebugLines = mFeatureFlags.isEnabled(Flags.NSSL_DEBUG_LINES);
+         mDebugRemoveAnimation = mFeatureFlags.isEnabled(Flags.NSSL_DEBUG_REMOVE_ANIMATION);
+         mSectionsManager = Dependency.get(NotificationSectionsManager.class);
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardBottomAreaViewController.kt b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardBottomAreaViewController.kt
+index 4aece3d5cd6a..e6f42080b86d 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardBottomAreaViewController.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardBottomAreaViewController.kt
+@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.phone
+ 
+ import com.android.systemui.flags.FeatureFlagsClassic
+ import com.android.systemui.flags.Flags
++import com.android.systemui.flags.LockscreenLandscape
+ import com.android.systemui.Flags.smartspaceRelocateToBottom
+ import android.view.View
+ import android.view.ViewGroup
+@@ -38,7 +39,8 @@ class KeyguardBottomAreaViewController
+ 
+     init {
+         view.setIsLockscreenLandscapeEnabled(
+-                featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE))
++                LockscreenLandscape.isEnabled(
++                        featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), view.context))
+     }
+ 
+     override fun onViewAttached() {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/KeyguardStateControllerImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/policy/KeyguardStateControllerImpl.java
+index 31cae79c6b94..21c1c8e79f56 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/KeyguardStateControllerImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/KeyguardStateControllerImpl.java
+@@ -39,6 +39,7 @@ import com.android.keyguard.logging.KeyguardUpdateMonitorLogger;
+ import com.android.systemui.dagger.SysUISingleton;
+ import com.android.systemui.dump.DumpManager;
+ import com.android.systemui.flags.FeatureFlags;
++import com.android.systemui.flags.LockscreenLandscape;
+ import com.android.systemui.keyguard.KeyguardUnlockAnimationController;
+ import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
+ import com.android.systemui.res.R;
+@@ -290,7 +291,8 @@ public class KeyguardStateControllerImpl implements KeyguardStateController {
+         final boolean configEnabled =
+                 mContext.getResources().getBoolean(R.bool.config_enableLockScreenRotation);
+         return SystemProperties.getBoolean("lockscreen.rot_override", configEnabled)
+-                || mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE);
++                || LockscreenLandscape.isEnabled(
++                        mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE), mContext);
+     }
+ 
+     @Override
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/SplitShadeStateControllerImpl.kt b/packages/SystemUI/src/com/android/systemui/statusbar/policy/SplitShadeStateControllerImpl.kt
+index 5c5b17e6af42..fbcb93697762 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/SplitShadeStateControllerImpl.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/SplitShadeStateControllerImpl.kt
+@@ -19,6 +19,7 @@ import android.content.res.Resources
+ import com.android.systemui.dagger.SysUISingleton
+ import com.android.systemui.flags.FeatureFlags
+ import com.android.systemui.flags.Flags
++import com.android.systemui.flags.LockscreenLandscape
+ import com.android.systemui.res.R
+ import javax.inject.Inject
+ 
+@@ -40,7 +41,8 @@ class SplitShadeStateControllerImpl @Inject constructor(private val featureFlags
+     )
+     override fun shouldUseSplitNotificationShade(resources: Resources): Boolean {
+         return (resources.getBoolean(R.bool.config_use_split_notification_shade) ||
+-            (featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE) &&
++            (LockscreenLandscape.isEnabled(
++                featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE), resources) &&
+                 resources.getBoolean(R.bool.force_config_use_split_notification_shade)))
+     }
+ }
+-- 
+2.55.0
+

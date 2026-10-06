@@ -1,0 +1,126 @@
+From 71df5244938489783cb6893c535b8e7c75d38d08 Mon Sep 17 00:00:00 2001
+From: Chris Olin <contact@chrisolin.com>
+Date: Mon, 5 Oct 2026 20:16:12 -0400
+Subject: [PATCH] Lokmat YZL_C30_TFT_JL: landscape watch defaults
+
+Match ro.vendor.build.fingerprint
+alps/vnd_YZL_C30_TFT_JL/YZL_C30_TFT_JL. SettingsProvider
+def_user_rotation is 3, so a new settings database comes up at
+rotation 270. The SystemUI overlay sets
+config_enable_lockscreen_landscape for the split lock-screen bouncer.
+phh-on-data.sh writes the panel lock for this fingerprint.
+---
+ Lokmat/YZL_C30_TFT_JL-SystemUI/Android.mk           |  8 ++++++++
+ Lokmat/YZL_C30_TFT_JL-SystemUI/AndroidManifest.xml  | 10 ++++++++++
+ Lokmat/YZL_C30_TFT_JL-SystemUI/res/values/bools.xml |  5 +++++
+ Lokmat/YZL_C30_TFT_JL/Android.mk                    |  8 ++++++++
+ Lokmat/YZL_C30_TFT_JL/AndroidManifest.xml           | 10 ++++++++++
+ Lokmat/YZL_C30_TFT_JL/res/values/defaults.xml       |  6 ++++++
+ overlay.mk                                          |  2 ++
+ 7 files changed, 49 insertions(+)
+ create mode 100644 Lokmat/YZL_C30_TFT_JL-SystemUI/Android.mk
+ create mode 100644 Lokmat/YZL_C30_TFT_JL-SystemUI/AndroidManifest.xml
+ create mode 100644 Lokmat/YZL_C30_TFT_JL-SystemUI/res/values/bools.xml
+ create mode 100644 Lokmat/YZL_C30_TFT_JL/Android.mk
+ create mode 100644 Lokmat/YZL_C30_TFT_JL/AndroidManifest.xml
+ create mode 100644 Lokmat/YZL_C30_TFT_JL/res/values/defaults.xml
+
+diff --git a/Lokmat/YZL_C30_TFT_JL-SystemUI/Android.mk b/Lokmat/YZL_C30_TFT_JL-SystemUI/Android.mk
+new file mode 100644
+index 0000000..316fc08
+--- /dev/null
++++ b/Lokmat/YZL_C30_TFT_JL-SystemUI/Android.mk
+@@ -0,0 +1,8 @@
++LOCAL_PATH := $(call my-dir)
++include $(CLEAR_VARS)
++LOCAL_MODULE_TAGS := optional
++LOCAL_PACKAGE_NAME := treble-overlay-lokmat-yzl_c30_tft_jl-systemui
++LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/overlay
++LOCAL_IS_RUNTIME_RESOURCE_OVERLAY := true
++LOCAL_PRIVATE_PLATFORM_APIS := true
++include $(BUILD_PACKAGE)
+diff --git a/Lokmat/YZL_C30_TFT_JL-SystemUI/AndroidManifest.xml b/Lokmat/YZL_C30_TFT_JL-SystemUI/AndroidManifest.xml
+new file mode 100644
+index 0000000..5228e6d
+--- /dev/null
++++ b/Lokmat/YZL_C30_TFT_JL-SystemUI/AndroidManifest.xml
+@@ -0,0 +1,10 @@
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++        package="me.phh.treble.overlay.lokmat.yzlc30tftjl.systemui"
++        android:versionCode="1"
++        android:versionName="1.0">
++        <overlay android:targetPackage="com.android.systemui"
++                android:requiredSystemPropertyName="ro.vendor.build.fingerprint"
++                android:requiredSystemPropertyValue="+alps/vnd_YZL_C30_TFT_JL/YZL_C30_TFT_JL:*"
++                android:priority="850"
++                android:isStatic="true" />
++</manifest>
+diff --git a/Lokmat/YZL_C30_TFT_JL-SystemUI/res/values/bools.xml b/Lokmat/YZL_C30_TFT_JL-SystemUI/res/values/bools.xml
+new file mode 100644
+index 0000000..ebdb8de
+--- /dev/null
++++ b/Lokmat/YZL_C30_TFT_JL-SystemUI/res/values/bools.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Same landscape lock screen the unreleased flag would select. -->
++    <bool name="config_enable_lockscreen_landscape">true</bool>
++</resources>
+diff --git a/Lokmat/YZL_C30_TFT_JL/Android.mk b/Lokmat/YZL_C30_TFT_JL/Android.mk
+new file mode 100644
+index 0000000..2b0af51
+--- /dev/null
++++ b/Lokmat/YZL_C30_TFT_JL/Android.mk
+@@ -0,0 +1,8 @@
++LOCAL_PATH := $(call my-dir)
++include $(CLEAR_VARS)
++LOCAL_MODULE_TAGS := optional
++LOCAL_PACKAGE_NAME := treble-overlay-lokmat-yzl_c30_tft_jl
++LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/overlay
++LOCAL_IS_RUNTIME_RESOURCE_OVERLAY := true
++LOCAL_PRIVATE_PLATFORM_APIS := true
++include $(BUILD_PACKAGE)
+diff --git a/Lokmat/YZL_C30_TFT_JL/AndroidManifest.xml b/Lokmat/YZL_C30_TFT_JL/AndroidManifest.xml
+new file mode 100644
+index 0000000..d73903b
+--- /dev/null
++++ b/Lokmat/YZL_C30_TFT_JL/AndroidManifest.xml
+@@ -0,0 +1,10 @@
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++        package="me.phh.treble.overlay.lokmat.yzlc30tftjl"
++        android:versionCode="1"
++        android:versionName="1.0">
++        <overlay android:targetPackage="com.android.providers.settings"
++                android:requiredSystemPropertyName="ro.vendor.build.fingerprint"
++                android:requiredSystemPropertyValue="+alps/vnd_YZL_C30_TFT_JL/YZL_C30_TFT_JL:*"
++                android:priority="850"
++                android:isStatic="true" />
++</manifest>
+diff --git a/Lokmat/YZL_C30_TFT_JL/res/values/defaults.xml b/Lokmat/YZL_C30_TFT_JL/res/values/defaults.xml
+new file mode 100644
+index 0000000..d5bac49
+--- /dev/null
++++ b/Lokmat/YZL_C30_TFT_JL/res/values/defaults.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Natural panel is 480x640. This watch is worn at rotation 270, so a
++         new settings database comes up landscape. Auto-rotate stays off. -->
++    <integer name="def_user_rotation">3</integer>
++</resources>
+diff --git a/overlay.mk b/overlay.mk
+index e07fd8e..c0e394c 100644
+--- a/overlay.mk
++++ b/overlay.mk
+@@ -93,6 +93,8 @@ PRODUCT_PACKAGES += \
+ 	treble-overlay-lge-mfh505glm \
+ 	treble-overlay-lge-mfh505glm-systemui \
+ 	treble-overlay-lge-timelm \
++	treble-overlay-lokmat-yzl_c30_tft_jl \
++	treble-overlay-lokmat-yzl_c30_tft_jl-systemui \
+ 	treble-overlay-mbi-s10 \
+ 	treble-overlay-mbi-s10-systemui \
+ 	treble-overlay-meizu-m2181 \
+-- 
+2.55.0
+
