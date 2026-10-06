@@ -1,0 +1,62 @@
+From a7cb755825c2d02bb0453a56894ab6f652aff4b8 Mon Sep 17 00:00:00 2001
+From: Chris Olin <contact@chrisolin.com>
+Date: Mon, 5 Oct 2026 22:17:56 -0400
+Subject: [PATCH] Limit the Glif landscape split to windows at least 600dp wide
+
+layout-land-v31 splits every landscape window into equal header
+and content panes. A 569dp-wide window gives the content pane
+about 230px, so a 56sp title wraps mid-word and the footer is
+squeezed out. Expressive layouts already select their wide
+content at w600dp. Move the land-v31 content layouts to
+layout-w600dp-land-v31 so narrower landscape windows keep the
+single-column template.
+
+Test: qualifier check, then Welcome on a 569dp-wide landscape window
+---
+ .../sud_glif_loading_template_content.xml                         | 0
+ .../sud_glif_blank_template_content.xml                           | 0
+ .../sud_glif_list_template_content.xml                            | 0
+ .../sud_glif_preference_recycler_view.xml                         | 0
+ .../sud_glif_preference_template_content.xml                      | 0
+ .../sud_glif_recycler_template_content.xml                        | 0
+ .../sud_glif_template_content.xml                                 | 0
+ 7 files changed, 0 insertions(+), 0 deletions(-)
+ rename lottie_loading_layout/res/{layout-land-v31 => layout-w600dp-land-v31}/sud_glif_loading_template_content.xml (100%)
+ rename main/res/{layout-land-v31 => layout-w600dp-land-v31}/sud_glif_blank_template_content.xml (100%)
+ rename main/res/{layout-land-v31 => layout-w600dp-land-v31}/sud_glif_list_template_content.xml (100%)
+ rename main/res/{layout-land-v31 => layout-w600dp-land-v31}/sud_glif_preference_recycler_view.xml (100%)
+ rename main/res/{layout-land-v31 => layout-w600dp-land-v31}/sud_glif_preference_template_content.xml (100%)
+ rename main/res/{layout-land-v31 => layout-w600dp-land-v31}/sud_glif_recycler_template_content.xml (100%)
+ rename main/res/{layout-land-v31 => layout-w600dp-land-v31}/sud_glif_template_content.xml (100%)
+
+diff --git a/lottie_loading_layout/res/layout-land-v31/sud_glif_loading_template_content.xml b/lottie_loading_layout/res/layout-w600dp-land-v31/sud_glif_loading_template_content.xml
+similarity index 100%
+rename from lottie_loading_layout/res/layout-land-v31/sud_glif_loading_template_content.xml
+rename to lottie_loading_layout/res/layout-w600dp-land-v31/sud_glif_loading_template_content.xml
+diff --git a/main/res/layout-land-v31/sud_glif_blank_template_content.xml b/main/res/layout-w600dp-land-v31/sud_glif_blank_template_content.xml
+similarity index 100%
+rename from main/res/layout-land-v31/sud_glif_blank_template_content.xml
+rename to main/res/layout-w600dp-land-v31/sud_glif_blank_template_content.xml
+diff --git a/main/res/layout-land-v31/sud_glif_list_template_content.xml b/main/res/layout-w600dp-land-v31/sud_glif_list_template_content.xml
+similarity index 100%
+rename from main/res/layout-land-v31/sud_glif_list_template_content.xml
+rename to main/res/layout-w600dp-land-v31/sud_glif_list_template_content.xml
+diff --git a/main/res/layout-land-v31/sud_glif_preference_recycler_view.xml b/main/res/layout-w600dp-land-v31/sud_glif_preference_recycler_view.xml
+similarity index 100%
+rename from main/res/layout-land-v31/sud_glif_preference_recycler_view.xml
+rename to main/res/layout-w600dp-land-v31/sud_glif_preference_recycler_view.xml
+diff --git a/main/res/layout-land-v31/sud_glif_preference_template_content.xml b/main/res/layout-w600dp-land-v31/sud_glif_preference_template_content.xml
+similarity index 100%
+rename from main/res/layout-land-v31/sud_glif_preference_template_content.xml
+rename to main/res/layout-w600dp-land-v31/sud_glif_preference_template_content.xml
+diff --git a/main/res/layout-land-v31/sud_glif_recycler_template_content.xml b/main/res/layout-w600dp-land-v31/sud_glif_recycler_template_content.xml
+similarity index 100%
+rename from main/res/layout-land-v31/sud_glif_recycler_template_content.xml
+rename to main/res/layout-w600dp-land-v31/sud_glif_recycler_template_content.xml
+diff --git a/main/res/layout-land-v31/sud_glif_template_content.xml b/main/res/layout-w600dp-land-v31/sud_glif_template_content.xml
+similarity index 100%
+rename from main/res/layout-land-v31/sud_glif_template_content.xml
+rename to main/res/layout-w600dp-land-v31/sud_glif_template_content.xml
+-- 
+2.55.0
+
