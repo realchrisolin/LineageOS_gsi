@@ -51,6 +51,12 @@ for path_personal in $(cd $personal; echo *); do
 	pushd $tree
 
 	for patch in $personal/$path_personal/*.patch; do
+		# Skip a patch that is already in the tree. The forward apply
+		# fails on a second run, and that used to be reported as a failure.
+		if patch -f -p1 --dry-run -R < $patch > /dev/null; then
+			printf "### ALREADY APPLIED: $patch \n"
+			continue
+		fi
 
 		if git apply --check $patch; then
 			git am $patch

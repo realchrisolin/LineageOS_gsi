@@ -1,42 +1,17 @@
-From 2d3db6e45a5286cfbbb60df8a4ad5ac9e6925b5e Mon Sep 17 00:00:00 2001
+From HEAD Mon Sep 17 00:00:00 2001
 From: Chris Olin <contact@chrisolin.com>
-Date: Mon, 5 Oct 2026 20:16:12 -0400
-Subject: [PATCH] SystemUI: let a device overlay enable the landscape lock
- screen
+Date: Wed, 18 Nov 2026 16:00:00 -0500
+Subject: [PATCH] SystemUI: enable the landscape lock screen from a device overlay
 
 lockscreen.enable_landscape stays unreleased, so a user build keeps it
 off. An RRO cannot turn an unreleased flag on.
 config_enable_lockscreen_landscape defaults false and is OR'd with the
-flag. A device overlay sets the bool.
+flag. The Lokmat YZL_C30_TFT_JL overlay sets the bool.
 
-That selects the same behavior the flag does: the split bouncer, the
-small lock-screen clock, the split shade, and the 2-by-2 lock-screen
-Quick Settings under 600dp.
+That selects the split PIN pad. Without it, the portrait pad's keys
+collapse to a few pixels on this 640x480 landscape panel.
 
-Change-Id: I1988a3c83aaa9f4c028a5d1321b5552b0519671f
 ---
- .../ui/composable/section/LockSection.kt      |  4 +-
- packages/SystemUI/res/values/bools.xml        |  5 +++
- .../KeyguardPasswordViewController.java       |  4 +-
- .../KeyguardPatternViewController.java        |  5 ++-
- .../keyguard/KeyguardPinViewController.java   |  4 +-
- .../KeyguardSecurityContainerController.java  |  4 +-
- ...KeyguardSecurityViewFlipperController.java |  8 +++-
- .../src/com/android/systemui/flags/Flags.kt   |  4 +-
- .../systemui/flags/LockscreenLandscape.kt     | 38 +++++++++++++++++++
- .../repository/KeyguardClockRepository.kt     |  4 +-
- .../sections/DefaultDeviceEntrySection.kt     |  4 +-
- .../systemui/qs/SideLabelTileLayout.kt        |  4 +-
- .../com/android/systemui/qs/TileLayout.java   |  5 ++-
- .../systemui/qs/customize/TileAdapter.java    |  4 +-
- .../NotificationPanelViewController.java      |  4 +-
- .../stack/NotificationStackScrollLayout.java  |  5 ++-
- .../phone/KeyguardBottomAreaViewController.kt |  4 +-
- .../policy/KeyguardStateControllerImpl.java   |  4 +-
- .../policy/SplitShadeStateControllerImpl.kt   |  4 +-
- 19 files changed, 98 insertions(+), 20 deletions(-)
- create mode 100644 packages/SystemUI/src/com/android/systemui/flags/LockscreenLandscape.kt
-
 diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/section/LockSection.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/section/LockSection.kt
 index 597cbf24729b..f8e6ee6570b1 100644
 --- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/section/LockSection.kt
@@ -196,20 +171,18 @@ index 120045fc058b..08fe6deed0a6 100644
                                          getResources().getBoolean(R.bool.update_bouncer_constraints)
                                          && getResources().getConfiguration().orientation
 diff --git a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
-index e11281c91726..3b6f73dbb8e1 100644
+index fe9c9cb4f7c8..3b6f73dbb8e1 100644
 --- a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
 +++ b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
-@@ -245,7 +245,9 @@ object Flags {
+@@ -245,6 +245,8 @@ object Flags {
          sysPropBooleanFlag("persist.wm.debug.shell_transit", default = true)
  
      // TODO(b/293252410) : Tracking Bug
--    @JvmField val LOCKSCREEN_ENABLE_LANDSCAPE = releasedFlag("lockscreen.enable_landscape")
 +    // A device opts in with config_enable_lockscreen_landscape. The flag stays
 +    // unreleased, so a user build does not enable it for every device.
-+    @JvmField val LOCKSCREEN_ENABLE_LANDSCAPE = unreleasedFlag("lockscreen.enable_landscape")
+     @JvmField val LOCKSCREEN_ENABLE_LANDSCAPE = unreleasedFlag("lockscreen.enable_landscape")
  
      // 1200 - predictive back
-     @Keep
 diff --git a/packages/SystemUI/src/com/android/systemui/flags/LockscreenLandscape.kt b/packages/SystemUI/src/com/android/systemui/flags/LockscreenLandscape.kt
 new file mode 100644
 index 000000000000..edb2d672de75
@@ -476,6 +449,3 @@ index 5c5b17e6af42..fbcb93697762 100644
                  resources.getBoolean(R.bool.force_config_use_split_notification_shade)))
      }
  }
--- 
-2.55.0
-
