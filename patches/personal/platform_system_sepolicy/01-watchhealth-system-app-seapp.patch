@@ -1,0 +1,29 @@
+From e0c76e9d2036c45759fa4e9cf11e712382073245 Mon Sep 17 00:00:00 2001
+From: Chris Olin <contact@chrisolin.com>
+Date: Tue, 17 Nov 2026 21:53:21 -0500
+Subject: [PATCH] sepolicy: run the watch health logger as system_app
+
+The nRF command node is labeled sysfs_nrf. Vendor policy already lets
+system_app write it, and untrusted apps are neverallowed to write sysfs.
+
+Change-Id: I209c06af78a3bd947371afc4c232a77b962651a2
+---
+ private/seapp_contexts | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/private/seapp_contexts b/private/seapp_contexts
+index 25ed1ba2a..6d24d0480 100644
+--- a/private/seapp_contexts
++++ b/private/seapp_contexts
+@@ -196,6 +196,8 @@ user=_sdksandbox isSdkSandboxNext=true domain=sdk_sandbox_next type=sdk_sandbox_
+ user=_sdksandbox isSdkSandboxAudit=true domain=sdk_sandbox_audit type=sdk_sandbox_data_file levelFrom=all
+ user=_app seinfo=app_zygote domain=app_zygote levelFrom=user
+ user=_app seinfo=media domain=mediaprovider type=app_data_file levelFrom=user
++# Platform-signed watch logger. system_app may write sysfs_nrf; untrusted_app may not.
++user=_app seinfo=platform name=com.realchrisolin.watchhealth domain=system_app type=system_app_data_file levelFrom=user
+ user=_app seinfo=platform domain=platform_app type=app_data_file levelFrom=user
+ user=_app isEphemeralApp=true domain=ephemeral_app type=app_data_file levelFrom=all
+ user=_app isPrivApp=true domain=priv_app type=privapp_data_file levelFrom=user
+-- 
+2.56.0
+
